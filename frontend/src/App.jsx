@@ -78,7 +78,7 @@ import AddFirm from "./vendorDashboard/components/forms/AddFirm";
 import AddProduct from "./vendorDashboard/components/forms/AddProduct";
 import AllProducts from "./vendorDashboard/components/AllProducts";
 import NotFound from "./vendorDashboard/components/forms/NotFound";
-import "./APP.css";
+import "./App.css";
 const App = () => {
   const loginToken = localStorage.getItem("loginToken");
   const firmName = localStorage.getItem("firmName");
