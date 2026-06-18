@@ -1,22 +1,21 @@
-
 import React, { useState, useEffect } from "react";
 import { API_URL } from "../data/apiPath";
+import "../../App.css";
 
 const AllProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-
   const fetchProducts = async () => {
     try {
       const firmId = localStorage.getItem("firmId");
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("loginToken");
 
       if (!firmId) throw new Error("No firm ID found. Please create a firm first.");
 
-      const response = await fetch(`${API_URL}/Product/${firmId}/products`, {
-        headers: { token, "Content-Type": "application/json" },
+      const response = await fetch(`${API_URL}/product/${firmId}/products`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       });
 
       if (!response.ok) {
@@ -25,7 +24,10 @@ const AllProducts = () => {
       }
 
       const data = await response.json();
-      setProducts(data.products || []);
+      const sorted = (data.products || []).sort(
+        (a, b) => (b.bestSeller === true) - (a.bestSeller === true)
+      );
+      setProducts(sorted);
     } catch (error) {
       setError(error.message);
     } finally {
@@ -33,15 +35,14 @@ const AllProducts = () => {
     }
   };
 
-  
   const deleteProduct = async (productId) => {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
 
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("loginToken");
       const response = await fetch(`${API_URL}/product/${productId}`, {
         method: "DELETE",
-        headers: { token },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) throw new Error("Failed to delete product");
@@ -53,81 +54,96 @@ const AllProducts = () => {
     }
   };
 
+  const toggleFamous = async (productId, currentStatus) => {
+    try {
+      const token = localStorage.getItem("loginToken");
+      const response = await fetch(`${API_URL}/product/${productId}/toggle-bestseller`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ bestSeller: !currentStatus }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update");
+
+      setProducts((prev) =>
+        prev
+          .map((p) => (p._id === productId ? { ...p, bestSeller: !currentStatus } : p))
+          .sort((a, b) => (b.bestSeller === true) - (a.bestSeller === true))
+      );
+    } catch (error) {
+      alert("Couldn't update famous dish status. " + error.message);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
   }, []);
 
-  if (loading) return <div>Loading products...</div>;
-  if (error) return <div>Error: {error}</div>;
-  if (products.length === 0) return <div>No products found</div>;
+  if (loading) return <div className="status-msg">Loading products...</div>;
+  if (error) return <div className="status-msg error">Error: {error}</div>;
+  if (products.length === 0) return <div className="status-msg">No products found</div>;
 
   return (
     <div className="product-container">
       <h2 className="heading">Your Products</h2>
 
-      
-      <div className="desktop-view">
+      <div className="product-table-wrapper">
         <table className="product-table">
           <thead>
             <tr>
+              <th>Image</th>
               <th>Product</th>
               <th>Price</th>
               <th>Description</th>
-              <th>Image</th>
+              <th>Famous Dish</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {products.map((item) => (
-              <tr key={item._id}>
-                <td>{item.productName}</td>
-                <td>₹{item.price}</td>
-                <td>{item.description || "—"}</td>
+              <tr key={item._id} className={item.bestSeller ? "famous-row" : ""}>
                 <td>
-                  {item.image && (
+                  {item.image ? (
                     <img
                       src={`${API_URL}/uploads/${item.image}`}
                       alt={item.productName}
                       className="product-image"
                     />
+                  ) : (
+                    <div className="product-image placeholder">🍽️</div>
                   )}
                 </td>
+                <td className="product-name-cell">
+                  {item.productName}
+                  {item.bestSeller && <span className="famous-badge">⭐ Famous</span>}
+                </td>
+                <td className="price-cell">₹{item.price}</td>
+                <td className="desc-cell">{item.description || "—"}</td>
                 <td>
-                  <button
-                    onClick={() => deleteProduct(item._id)}
-                    className="delete-btn"
-                  >
-                    Delete
-                  </button>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={!!item.bestSeller}
+                      onChange={() => toggleFamous(item._id, item.bestSeller)}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                </td>
+                <td>
+                  <div className="action-buttons">
+                    <button className="edit-btn">Edit</button>
+                    <button className="delete-btn" onClick={() => deleteProduct(item._id)}>
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-
-     
-      <div className="mobile-view">
-        {products.map((item) => (
-          <div className="product-card" key={item._id}>
-            <img
-              src={`${API_URL}/uploads/${item.image}`}
-              alt={item.productName}
-              className="product-card-image"
-            />
-            <div className="product-info">
-              <h3>{item.productName}</h3>
-              <p className="price">₹{item.price}</p>
-              <p>{item.description || "—"}</p>
-              <button
-                onClick={() => deleteProduct(item._id)}
-                className="delete-btn"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );

@@ -1,7 +1,6 @@
-
-
 import React, { useState } from 'react';
 import { API_URL } from '../../data/apiPath';
+import "../../../App.css";
 
 const AddFirm = () => {
   const [firmName, setFirmName] = useState("");
@@ -10,6 +9,8 @@ const AddFirm = () => {
   const [region, setRegion] = useState([]);
   const [offer, setOffer] = useState("");
   const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleCategoryChange = (event) => {
     const value = event.target.value;
@@ -32,15 +33,29 @@ const AddFirm = () => {
   const handleImageUpload = (event) => {
     const selectedImage = event.target.files[0];
     setFile(selectedImage);
+    if (selectedImage) {
+      setPreview(URL.createObjectURL(selectedImage));
+    }
   };
 
   const handleFirmSubmit = async (e) => {
     e.preventDefault();
+
+    if (!firmName || !area) {
+      alert("Please fill in firm name and area.");
+      return;
+    }
+    if (category.length === 0) {
+      alert("Please select at least one category.");
+      return;
+    }
+
+    setLoading(true);
     try {
       const loginToken = localStorage.getItem('loginToken');
       if (!loginToken) {
-        console.error("User not authenticated");
         alert("Please log in first.");
+        setLoading(false);
         return;
       }
 
@@ -54,41 +69,33 @@ const AddFirm = () => {
 
       const response = await fetch(`${API_URL}/firm/add-firm`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${loginToken}`
-        },
+        headers: { 'Authorization': `Bearer ${loginToken}` },
         body: formData
       });
 
       const data = await response.json();
-      console.log("status",response.status);
-      console.log('data',data)
-      
+
       if (response.ok && data.firmId) {
-        console.log("Firm added successfully:", data);
         setFirmName("");
         setArea("");
         setCategory([]);
         setRegion([]);
         setOffer("");
         setFile(null);
+        setPreview(null);
 
-        // Save firmId to localStorage
-        const firmId = data.firmId;
-        localStorage.setItem('firmId', firmId);
-        console.log("Firm ID saved to localStorage:", firmId);
-
+        localStorage.setItem('firmId', data.firmId);
         alert("Firm added successfully ✅");
       } else if (data.message === "vendor can have only one firm") {
         alert("Firm already exists. Only 1 firm is allowed.");
       } else {
-        console.warn("Unexpected response:", data);
         alert("Failed to add firm. Please try again.");
       }
-
     } catch (error) {
       console.error("Failed to add firm:", error);
       alert("An error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -96,51 +103,70 @@ const AddFirm = () => {
     <div className="firmSection">
       <form className="tableForm" onSubmit={handleFirmSubmit}>
         <h3>Add Firm</h3>
+
         <label>Firm Name</label>
-        <input type="text" name='firmName' value={firmName} onChange={(e) => setFirmName(e.target.value)} />
-        
+        <input
+          type="text"
+          name="firmName"
+          placeholder="e.g. Hema's Kitchen"
+          value={firmName}
+          onChange={(e) => setFirmName(e.target.value)}
+        />
+
         <label>Area</label>
-        <input type="text" name='area' value={area} onChange={(e) => setArea(e.target.value)} />
+        <input
+          type="text"
+          name="area"
+          placeholder="e.g. Indiranagar, Bengaluru"
+          value={area}
+          onChange={(e) => setArea(e.target.value)}
+        />
 
         <div className="checkInp">
           <label>Category</label>
-          <div className="inputsContainer">
-            <div className="checboxContainer">
-              <label>Veg</label>
-              <input type="checkbox" checked={category.includes('veg')} value="veg" onChange={handleCategoryChange} />
-            </div>
-            <div className="checboxContainer">
-              <label>Non-Veg</label>
-              <input type="checkbox" checked={category.includes('non-veg')} value="non-veg" onChange={handleCategoryChange} />
-            </div>
+          <div className="pillGroup">
+            <label className={`pillOption ${category.includes('veg') ? 'active' : ''}`}>
+              <input type="checkbox" value="veg" checked={category.includes('veg')} onChange={handleCategoryChange} />
+              🥦 Veg
+            </label>
+            <label className={`pillOption ${category.includes('non-veg') ? 'active' : ''}`}>
+              <input type="checkbox" value="non-veg" checked={category.includes('non-veg')} onChange={handleCategoryChange} />
+              🍗 Non-Veg
+            </label>
           </div>
         </div>
 
-        <label>Offer</label>
-        <input type="text" name='offer' value={offer} onChange={(e) => setOffer(e.target.value)} />
+        <label>Offer <span className="optionalTag">(optional)</span></label>
+        <input
+          type="text"
+          name="offer"
+          placeholder="e.g. 20% off on orders above ₹299"
+          value={offer}
+          onChange={(e) => setOffer(e.target.value)}
+        />
 
         <div className="checkInp">
-          <label>Region</label>
-          <div className="inputsContainer">
+          <label>Cuisine / Region</label>
+          <div className="pillGroup">
             {["south-indian", "north-indian", "chinese", "bakery"].map((item) => (
-              <div className="regBoxContainer" key={item}>
-                <label>{item.replace("-", " ")}</label>
-                <input
-                  type="checkbox"
-                  value={item}
-                  checked={region.includes(item)}
-                  onChange={handleRegionChange}
-                />
-              </div>
+              <label key={item} className={`pillOption ${region.includes(item) ? 'active' : ''}`}>
+                <input type="checkbox" value={item} checked={region.includes(item)} onChange={handleRegionChange} />
+                {item.replace("-", " ")}
+              </label>
             ))}
           </div>
         </div>
 
         <label>Firm Image</label>
-        <input type="file" onChange={handleImageUpload} />
+        <div className="fileUploadRow">
+          <input type="file" accept="image/*" onChange={handleImageUpload} />
+          {preview && <img src={preview} alt="preview" className="imgPreview" />}
+        </div>
 
         <div className="btnSubmit">
-          <button type='submit'>Submit</button>
+          <button type="submit" disabled={loading}>
+            {loading ? "Adding..." : "Add Firm"}
+          </button>
         </div>
       </form>
     </div>
