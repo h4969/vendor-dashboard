@@ -193,18 +193,7 @@ curl -X POST http://localhost:4000/vendor/login \
 }
 ```
 
----
 
-##  Roadmap
-
-- [ ] Edit product (the "Edit" button is present in the UI but not wired up yet)
-- [ ] Protect delete endpoints and verify the vendor owns the firm or product
-- [ ] Toggle bestseller status from the products table
-- [ ] Automated tests (unit and API)
-- [ ] Pagination and search for large menus
-- [ ] Cloud image storage (e.g. Cloudinary) instead of local disk
-
----
 
 
 
